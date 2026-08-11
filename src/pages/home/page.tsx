@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { AudioLines, Loader2, Wand2 } from "lucide-react"
+import { AudioLines, Loader2, Users, Wand2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -20,15 +20,18 @@ import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { AudioPlayer } from "@/components/audio-player"
-import { generateAudio } from "@/lib/api"
+import { buildDownloadUrl, createAudioStream } from "@/lib/api"
+import { cn } from "@/lib/utils"
 import { VOICES, DEFAULT_VOICE } from "@/lib/voices"
 
 export default function Home() {
   const [text, setText] = useState("")
   const [voice, setVoice] = useState(DEFAULT_VOICE)
   const [rate, setRate] = useState(0)
+  const [multiVoice, setMultiVoice] = useState(false)
   const [loading, setLoading] = useState(false)
   const [audioSrc, setAudioSrc] = useState<string | null>(null)
+  const [wasCast, setWasCast] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [downloadName, setDownloadName] = useState("voice-maker-output")
 
@@ -41,14 +44,16 @@ export default function Home() {
 
     setLoading(true)
     setError(null)
-
-    if (audioSrc) {
-      URL.revokeObjectURL(audioSrc)
-    }
     setAudioSrc(null)
 
     try {
-      const url = await generateAudio({ text, voice, rate: rateLabel })
+      const url = await createAudioStream({
+        text,
+        voice,
+        rate: rateLabel,
+        multiVoice,
+      })
+      setWasCast(multiVoice)
       setAudioSrc(url)
     } catch (err) {
       console.error("Audio generation failed:", err)
@@ -89,7 +94,7 @@ export default function Home() {
                 value={text}
                 rows={7}
                 onChange={(e) => setText(e.target.value)}
-                className="min-h-36 resize-y rounded-md border border-input bg-background px-3 py-2.5 focus-visible:border-ring"
+                className="max-h-72 min-h-36 resize-y overflow-y-auto rounded-md border border-input bg-background px-3 py-2.5 focus-visible:border-ring"
               />
               <div className="flex justify-end">
                 <span className="text-xs text-muted-foreground tabular-nums">
@@ -100,7 +105,9 @@ export default function Home() {
 
             <div className="grid gap-5 sm:grid-cols-2">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Voice</label>
+                <label className="text-sm font-medium">
+                  {multiVoice ? "Narrator voice" : "Voice"}
+                </label>
                 <Select value={voice} onValueChange={setVoice}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Select a voice" />
@@ -133,6 +140,42 @@ export default function Home() {
               </div>
             </div>
 
+            <div className="flex items-start gap-3 rounded-md border border-input bg-background p-3">
+              <button
+                type="button"
+                role="switch"
+                aria-checked={multiVoice}
+                aria-label="Multiple voices"
+                onClick={() => setMultiVoice((on) => !on)}
+                className={cn(
+                  "mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                  "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                  multiVoice ? "bg-primary" : "bg-input"
+                )}
+              >
+                <span
+                  className={cn(
+                    "size-4 rounded-full bg-background shadow transition-transform",
+                    multiVoice ? "translate-x-[1.125rem]" : "translate-x-0.5"
+                  )}
+                />
+              </button>
+
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <Users className="size-3.5 text-muted-foreground" />
+                  <label className="text-sm font-medium">Multiple voices</label>
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-primary uppercase">
+                    Beta
+                  </span>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Reads dialogue in a separate voice per character. Adds a few
+                  seconds up front while the story is analysed.
+                </p>
+              </div>
+            </div>
+
             <Button
               onClick={handleGenerate}
               disabled={!text.trim() || loading}
@@ -142,7 +185,7 @@ export default function Home() {
               {loading ? (
                 <>
                   <Loader2 className="animate-spin" />
-                  Generating…
+                  Starting…
                 </>
               ) : (
                 <>
@@ -163,7 +206,9 @@ export default function Home() {
             <CardHeader className="border-b">
               <CardTitle>Audio Player</CardTitle>
               <CardDescription>
-                Play, skip, adjust volume, or download your audio.
+                {wasCast
+                  ? "Casting the characters, then playing as the audio arrives."
+                  : "Playback starts as soon as the first audio arrives."}
               </CardDescription>
             </CardHeader>
 
@@ -182,8 +227,10 @@ export default function Home() {
 
               <AudioPlayer
                 src={audioSrc}
+                downloadUrl={buildDownloadUrl(audioSrc, safeDownloadName)}
                 title="Voice Maker Output"
                 downloadName={safeDownloadName}
+                autoPlay
               />
             </CardContent>
           </Card>

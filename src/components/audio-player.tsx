@@ -16,8 +16,10 @@ import { Slider } from "@/components/ui/slider"
 
 interface AudioPlayerProps {
   src: string
+  downloadUrl?: string
   title?: string
   downloadName?: string
+  autoPlay?: boolean
   className?: string
 }
 
@@ -30,71 +32,100 @@ function formatTime(seconds: number) {
 
 export function AudioPlayer({
   src,
+  downloadUrl,
   title = "Generated Audio",
   downloadName = "audio.mp3",
+  autoPlay = false,
   className,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
+  const [bufferedEnd, setBufferedEnd] = useState(0)
   const [currentTime, setCurrentTime] = useState(0)
   const [volume, setVolume] = useState(1)
   const [isMuted, setIsMuted] = useState(false)
+
+  const hasFullDuration = Number.isFinite(duration) && duration > 0
+  const seekMax = hasFullDuration ? duration : bufferedEnd
+  const isStreaming = !hasFullDuration
 
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
 
-    const onLoaded = () => setDuration(audio.duration)
-    const onTime = () => setCurrentTime(audio.currentTime)
-    const onEnded = () => setIsPlaying(false)
+    setIsPlaying(false)
+    setDuration(0)
+    setBufferedEnd(0)
+    setCurrentTime(0)
 
-    audio.addEventListener("loadedmetadata", onLoaded)
+    const readBuffered = () => {
+      if (audio.buffered.length > 0) {
+        setBufferedEnd(audio.buffered.end(audio.buffered.length - 1))
+      }
+    }
+
+    const onDuration = () => {
+      setDuration(audio.duration)
+      readBuffered()
+    }
+    const onTime = () => {
+      setCurrentTime(audio.currentTime)
+      readBuffered()
+    }
+    const onEnded = () => setIsPlaying(false)
+    const onPlay = () => setIsPlaying(true)
+    const onPause = () => setIsPlaying(false)
+
+    audio.addEventListener("loadedmetadata", onDuration)
+    audio.addEventListener("durationchange", onDuration)
+    audio.addEventListener("progress", readBuffered)
     audio.addEventListener("timeupdate", onTime)
     audio.addEventListener("ended", onEnded)
+    audio.addEventListener("play", onPlay)
+    audio.addEventListener("pause", onPause)
+
+    if (autoPlay) {
+      audio.play().catch(() => {})
+    }
 
     return () => {
-      audio.removeEventListener("loadedmetadata", onLoaded)
+      audio.removeEventListener("loadedmetadata", onDuration)
+      audio.removeEventListener("durationchange", onDuration)
+      audio.removeEventListener("progress", readBuffered)
       audio.removeEventListener("timeupdate", onTime)
       audio.removeEventListener("ended", onEnded)
+      audio.removeEventListener("play", onPlay)
+      audio.removeEventListener("pause", onPause)
     }
-  }, [src])
+  }, [src, autoPlay])
 
   const togglePlay = () => {
     const audio = audioRef.current
     if (!audio) return
 
-    if (isPlaying) {
-      audio.pause()
+    if (audio.paused) {
+      audio.play().catch(() => {})
     } else {
-      audio.play()
+      audio.pause()
     }
-    setIsPlaying(!isPlaying)
   }
 
-  const skip = (amount: number) => {
+  const seekTo = (seconds: number) => {
     const audio = audioRef.current
     if (!audio) return
-    audio.currentTime = Math.min(
-      Math.max(audio.currentTime + amount, 0),
-      duration || audio.duration || 0
-    )
+
+    const target = Math.min(Math.max(seconds, 0), seekMax || 0)
+    audio.currentTime = target
+    setCurrentTime(target)
   }
 
-  const restart = () => {
-    const audio = audioRef.current
-    if (!audio) return
-    audio.currentTime = 0
-    setCurrentTime(0)
-  }
+  const skip = (amount: number) => seekTo(currentTime + amount)
 
-  const onSeek = (value: number[]) => {
-    const audio = audioRef.current
-    if (!audio) return
-    audio.currentTime = value[0]
-    setCurrentTime(value[0])
-  }
+  const restart = () => seekTo(0)
+
+  const onSeek = (value: number[]) => seekTo(value[0])
 
   const onVolume = (value: number[]) => {
     const audio = audioRef.current
@@ -126,7 +157,10 @@ export function AudioPlayer({
             {title}
           </p>
           <p className="text-xs text-muted-foreground tabular-nums">
-            {formatTime(currentTime)} / {formatTime(duration)}
+            {formatTime(currentTime)} / {formatTime(seekMax)}
+            {isStreaming && (
+              <span className="ml-2 text-primary tabular-nums">streaming…</span>
+            )}
           </p>
         </div>
       </div>
@@ -134,14 +168,17 @@ export function AudioPlayer({
       <div className="space-y-1.5">
         <Slider
           value={[currentTime]}
-          max={duration || 100}
+          max={seekMax || 100}
           step={0.1}
           onValueChange={onSeek}
           aria-label="Seek"
         />
         <div className="flex justify-between text-[11px] text-muted-foreground tabular-nums">
           <span>{formatTime(currentTime)}</span>
-          <span>{formatTime(duration)}</span>
+          <span>
+            {isStreaming ? "~" : ""}
+            {formatTime(seekMax)}
+          </span>
         </div>
       </div>
 
@@ -208,7 +245,7 @@ export function AudioPlayer({
       </div>
 
       <Button asChild variant="outline" className="w-full">
-        <a href={src} download={downloadName}>
+        <a href={downloadUrl ?? src} download={downloadName}>
           <Download />
           Download
         </a>
