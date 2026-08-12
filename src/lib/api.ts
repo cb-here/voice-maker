@@ -14,18 +14,35 @@ export interface GenerateAudioParams {
   multiVoice?: boolean
 }
 
+export async function toDevanagari(text: string): Promise<string> {
+  const response = await api.post<{ text: string }>("/text/devanagari", {
+    text,
+  })
+
+  return response.data.text
+}
+
+export interface AudioStream {
+  streamUrl: string
+  estimatedSeconds: number
+}
+
 export async function createAudioStream({
   text,
   voice,
   rate,
   multiVoice = false,
-}: GenerateAudioParams): Promise<string> {
-  const response = await api.post<{ session_id: string; stream_url: string }>(
-    "/audio/stream",
-    { text, voice, rate, multi_voice: multiVoice }
-  )
+}: GenerateAudioParams): Promise<AudioStream> {
+  const response = await api.post<{
+    session_id: string
+    stream_url: string
+    estimated_seconds: number
+  }>("/audio/stream", { text, voice, rate, multi_voice: multiVoice })
 
-  return new URL(response.data.stream_url, API_BASE_URL).toString()
+  return {
+    streamUrl: new URL(response.data.stream_url, API_BASE_URL).toString(),
+    estimatedSeconds: response.data.estimated_seconds,
+  }
 }
 
 export function buildDownloadUrl(streamUrl: string, filename: string): string {

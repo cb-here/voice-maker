@@ -20,6 +20,8 @@ interface AudioPlayerProps {
   title?: string
   downloadName?: string
   autoPlay?: boolean
+  compact?: boolean
+  estimatedSeconds?: number
   className?: string
 }
 
@@ -36,6 +38,8 @@ export function AudioPlayer({
   title = "Generated Audio",
   downloadName = "audio.mp3",
   autoPlay = false,
+  compact = false,
+  estimatedSeconds = 0,
   className,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
@@ -49,8 +53,15 @@ export function AudioPlayer({
   const [isMuted, setIsMuted] = useState(false)
 
   const hasFullDuration = Number.isFinite(duration) && duration > 0
-  const seekMax = hasFullDuration ? duration : bufferedEnd
   const isStreaming = !hasFullDuration
+  // While streaming, scale the bar to the estimated length of the whole reading
+  // rather than to how much has arrived — otherwise the thumb sits pinned at
+  // the right hand end for the entire story.
+  const seekMax = hasFullDuration
+    ? duration
+    : Math.max(estimatedSeconds, bufferedEnd)
+  // Seeking is still only safe within what has actually downloaded.
+  const seekLimit = hasFullDuration ? duration : bufferedEnd
 
   useEffect(() => {
     const audio = audioRef.current
@@ -140,7 +151,7 @@ export function AudioPlayer({
     const audio = audioRef.current
     if (!audio) return
 
-    const target = Math.min(Math.max(seconds, 0), seekMax || 0)
+    const target = Math.min(Math.max(seconds, 0), seekLimit || 0)
     audio.currentTime = target
     setCurrentTime(target)
   }
@@ -166,6 +177,74 @@ export function AudioPlayer({
     const next = !isMuted
     audio.muted = next
     setIsMuted(next)
+  }
+
+  if (compact) {
+    return (
+      <div className={cn("flex flex-col gap-2", className)}>
+        <audio ref={audioRef} src={src} preload="none" />
+
+        <Slider
+          value={[currentTime]}
+          max={seekMax || 100}
+          step={0.1}
+          onValueChange={onSeek}
+          aria-label="Seek"
+        />
+
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground tabular-nums">
+          <span>{formatTime(currentTime)}</span>
+          <span className="flex items-center gap-1.5">
+            {isStreaming && (
+              <span className="text-primary">streaming…</span>
+            )}
+            <span>
+              {isStreaming ? "~" : ""}
+              {formatTime(seekMax)}
+            </span>
+          </span>
+        </div>
+
+        <div className="flex items-center justify-center gap-2">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => skip(-10)}
+            aria-label="Back 10 seconds"
+          >
+            <SkipBack />
+          </Button>
+
+          <Button
+            size="icon-lg"
+            onClick={togglePlay}
+            className="size-16 rounded-full shadow-sm"
+            aria-label={isPlaying ? "Pause" : "Play"}
+          >
+            {isPlaying ? (
+              <Pause className="size-7" />
+            ) : (
+              <Play className="size-7" />
+            )}
+          </Button>
+
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => skip(10)}
+            aria-label="Forward 10 seconds"
+          >
+            <SkipForward />
+          </Button>
+
+          <Button asChild variant="ghost" size="icon-sm" aria-label="Download">
+            <a href={downloadUrl ?? src} download={downloadName}>
+              <Download />
+            </a>
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -228,13 +307,13 @@ export function AudioPlayer({
           <Button
             size="icon-lg"
             onClick={togglePlay}
-            className="rounded-full"
+            className="size-16 rounded-full shadow-sm"
             aria-label={isPlaying ? "Pause" : "Play"}
           >
             {isPlaying ? (
-              <Pause className="size-5" />
+              <Pause className="size-7" />
             ) : (
-              <Play className="size-5" />
+              <Play className="size-7" />
             )}
           </Button>
 
