@@ -39,6 +39,7 @@ export function AudioPlayer({
   className,
 }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const recoveredRef = useRef(false)
 
   const [isPlaying, setIsPlaying] = useState(false)
   const [duration, setDuration] = useState(0)
@@ -59,6 +60,7 @@ export function AudioPlayer({
     setDuration(0)
     setBufferedEnd(0)
     setCurrentTime(0)
+    recoveredRef.current = false
 
     const readBuffered = () => {
       if (audio.buffered.length > 0) {
@@ -74,7 +76,29 @@ export function AudioPlayer({
       setCurrentTime(audio.currentTime)
       readBuffered()
     }
-    const onEnded = () => setIsPlaying(false)
+    const onEnded = () => {
+      setIsPlaying(false)
+
+      if (recoveredRef.current) return
+      recoveredRef.current = true
+
+      const stoppedAt = audio.currentTime
+
+      const onReloaded = () => {
+        audio.removeEventListener("loadedmetadata", onReloaded)
+
+        if (!Number.isFinite(audio.duration) || audio.duration <= stoppedAt + 1) {
+          return
+        }
+
+        audio.currentTime = stoppedAt
+        audio.play().catch(() => {})
+      }
+
+      audio.addEventListener("loadedmetadata", onReloaded)
+      audio.load()
+    }
+
     const onPlay = () => setIsPlaying(true)
     const onPause = () => setIsPlaying(false)
 
@@ -146,7 +170,7 @@ export function AudioPlayer({
 
   return (
     <div className={cn("flex flex-col gap-5", className)}>
-      <audio ref={audioRef} src={src} preload="metadata" />
+      <audio ref={audioRef} src={src} preload="none" />
 
       <div className="flex items-center gap-3">
         <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
