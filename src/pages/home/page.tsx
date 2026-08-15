@@ -1,11 +1,16 @@
 import { useEffect, useState } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import {
   AudioLines,
   BookOpen,
+  Check,
   ChevronDown,
   ChevronLeft,
+  Headphones,
   Languages,
+  Library as LibraryIcon,
   Loader2,
+  Save,
   Users,
   Wand2,
 } from "lucide-react"
@@ -28,33 +33,85 @@ import {
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
-import { AudioPlayer } from "@/components/audio-player"
 import { StoryText } from "@/components/story-text"
-import { buildDownloadUrl, createAudioStream, toDevanagari } from "@/lib/api"
+import { useAudio } from "@/components/audio-host"
+import { createAudioStream, toDevanagari } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { VOICES, DEFAULT_VOICE } from "@/lib/voices"
+import { saveStory, titleFrom, type Story } from "@/lib/library"
 
 export default function Home() {
-  const [text, setText] = useState("")
-  const [voice, setVoice] = useState(DEFAULT_VOICE)
-  const [rate, setRate] = useState(0)
-  const [multiVoice, setMultiVoice] = useState(true)
+  const navigate = useNavigate()
+  const { track, play, downloadName, setDownloadName } = useAudio()
+  // A story handed over by the library. It is there on the very first render,
+  // so it seeds the state directly rather than being copied in by an effect.
+  const handover = useLocation().state as
+    | { story?: Story; read?: boolean }
+    | null
+  const opened = handover?.story
+
+  const [text, setText] = useState(opened?.text ?? "")
+  const [voice, setVoice] = useState(opened?.voice ?? DEFAULT_VOICE)
+  const [rate, setRate] = useState(opened?.rate ?? 0)
+  const [multiVoice, setMultiVoice] = useState(opened?.multiVoice ?? true)
   const [showOptions, setShowOptions] = useState(false)
-  const [reading, setReading] = useState(false)
+  const [reading, setReading] = useState(Boolean(handover?.read))
   const [converting, setConverting] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [audioSrc, setAudioSrc] = useState<string | null>(null)
-  const [estimatedSeconds, setEstimatedSeconds] = useState(0)
-  const [wasCast, setWasCast] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [downloadName, setDownloadName] = useState("voice-maker-output")
+  const [storyId, setStoryId] = useState<string | undefined>(opened?.id)
+  // The title is the story's identity. Editing the body keeps updating the same
+  // entry; replacing the text gives it a new first line, and that is taken as a
+  // different story rather than silently overwriting the old one.
+  const [savedTitle, setSavedTitle] = useState(opened?.title)
+  const [saved, setSaved] = useState<"idle" | "saving" | "done">("idle")
+  // Opened from the library to read, so back belongs there rather than in the
+  // editor. Cleared once the editor is reached, so back stops jumping away.
+  const [fromLibrary, setFromLibrary] = useState(Boolean(handover?.read))
+
+  const leaveReader = () => {
+    if (fromLibrary) {
+      navigate("/library")
+      return
+    }
+
+    setReading(false)
+  }
+
+  const audioSrc = track?.src ?? null
 
   const charCount = text.length
   const rateLabel = `${rate >= 0 ? "+" : ""}${rate}%`
-  const safeDownloadName = `${downloadName.trim() || "audio"}.mp3`
   const shortVoiceLabel = (
     VOICES.find((v) => v.value === voice)?.label ?? "Voice"
   ).split("—")[0].trim()
+
+  const handleSave = async () => {
+    if (!text.trim()) return
+
+    setSaved("saving")
+
+    const title = titleFrom(text)
+
+    try {
+      const story = await saveStory({
+        id: title === savedTitle ? storyId : undefined,
+        title,
+        text,
+        voice,
+        rate,
+        multiVoice,
+      })
+      setStoryId(story.id)
+      setSavedTitle(story.title)
+      setSaved("done")
+      setTimeout(() => setSaved("idle"), 1800)
+    } catch (err) {
+      console.error("Could not save the story:", err)
+      setError("Could not save the story on this device.")
+      setSaved("idle")
+    }
+  }
 
   const hasWorkInProgress = loading || Boolean(audioSrc)
 
@@ -91,7 +148,6 @@ export default function Home() {
 
     setLoading(true)
     setError(null)
-    setAudioSrc(null)
 
     try {
       const stream = await createAudioStream({
@@ -100,9 +156,11 @@ export default function Home() {
         rate: rateLabel,
         multiVoice,
       })
-      setWasCast(multiVoice)
-      setEstimatedSeconds(stream.estimatedSeconds)
-      setAudioSrc(stream.streamUrl)
+      play({
+        src: stream.streamUrl,
+        estimatedSeconds: stream.estimatedSeconds,
+        label: multiVoice ? "multi-voice" : shortVoiceLabel,
+      })
       setReading(true)
     } catch (err) {
       console.error("Audio generation failed:", err)
@@ -112,7 +170,9 @@ export default function Home() {
     }
   }
 
-  const showReader = reading && audioSrc
+  // Reading does not depend on audio existing: a saved story can be opened
+  // just to read, and listening started later from inside the reader.
+  const showReader = reading && text.trim().length > 0
 
   return (
     <div className="flex min-h-svh flex-col bg-background">
@@ -121,8 +181,8 @@ export default function Home() {
           <Button
             variant="ghost"
             size="icon-sm"
-            onClick={() => setReading(false)}
-            aria-label="Back to editing"
+            onClick={leaveReader}
+            aria-label={fromLibrary ? "Back to My Stories" : "Back to editing"}
           >
             <ChevronLeft />
           </Button>
@@ -135,9 +195,22 @@ export default function Home() {
             aria-label="Download filename"
             className="min-w-0 flex-1 rounded bg-transparent px-1 py-1 text-sm font-medium outline-none focus:bg-muted"
           />
-          <span className="shrink-0 pr-2 text-xs text-muted-foreground">
-            .mp3 · {wasCast ? "multi-voice" : shortVoiceLabel}
-          </span>
+          {audioSrc ? (
+            <span className="shrink-0 pr-2 text-xs text-muted-foreground">
+              .mp3 · {track?.label}
+            </span>
+          ) : (
+            /* Opened purely to read, so offer to start the audio from here. */
+            <Button
+              size="sm"
+              className="shrink-0"
+              onClick={handleGenerate}
+              disabled={loading}
+            >
+              {loading ? <Loader2 className="animate-spin" /> : <Headphones />}
+              Listen
+            </Button>
+          )}
         </header>
       )}
 
@@ -158,6 +231,14 @@ export default function Home() {
           <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-4xl">
             Voice Maker
           </h1>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => navigate("/library")}
+          >
+            <LibraryIcon />
+            My Stories
+          </Button>
           <p className="mx-auto hidden max-w-md text-sm text-muted-foreground sm:block">
             Turn your text into natural-sounding speech and play, scrub, or
             download the result.
@@ -201,7 +282,24 @@ export default function Home() {
                     </>
                   )}
                 </Button>
-                <span className="text-xs text-muted-foreground tabular-nums">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSave}
+                  disabled={!text.trim() || saved === "saving"}
+                  title="Keep this story on this device"
+                >
+                  {saved === "saving" ? (
+                    <Loader2 className="animate-spin" />
+                  ) : saved === "done" ? (
+                    <Check />
+                  ) : (
+                    <Save />
+                  )}
+                  {saved === "done" ? "Saved" : "Save"}
+                </Button>
+
+                <span className="ml-auto text-xs text-muted-foreground tabular-nums">
                   {charCount} {charCount === 1 ? "character" : "characters"}
                 </span>
               </div>
@@ -349,32 +447,17 @@ export default function Home() {
                 variant="outline"
                 size="lg"
                 className="w-full"
-                onClick={() => setReading(true)}
+                onClick={() => {
+                  // Reached the editor under its own steam, so the reader's
+                  // back button belongs here, not at the library.
+                  setFromLibrary(false)
+                  setReading(true)
+                }}
               >
                 <BookOpen />
                 Back to reading
               </Button>
             )}
-          </div>
-        </div>
-      )}
-
-      {/*
-        Deliberately rendered outside both views: moving it between them would
-        unmount the <audio> element, and the reading would jump back to the
-        beginning every time you switched screens.
-      */}
-      {audioSrc && (
-        <div className="sticky bottom-0 z-10 border-t bg-background/95 px-4 pt-3 pb-5 backdrop-blur">
-          <div className="mx-auto w-full max-w-2xl">
-            <AudioPlayer
-              compact
-              src={audioSrc}
-              downloadUrl={buildDownloadUrl(audioSrc, safeDownloadName)}
-              downloadName={safeDownloadName}
-              estimatedSeconds={estimatedSeconds}
-              autoPlay
-            />
           </div>
         </div>
       )}

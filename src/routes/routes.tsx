@@ -7,6 +7,7 @@ function S({ children }: { children: ReactNode }) {
 }
 
 const Home = lazy(() => import("@/pages/home/page"));
+const Library = lazy(() => import("@/pages/library/page"));
 const Translate = lazy(() => import("@/pages/translate/page"));
 const NotFound = lazy(() => import("@/pages/not-found/page"));
 
@@ -20,6 +21,15 @@ export function AppRoutes() {
         element={
           <S>
             <Home />
+          </S>
+        }
+      />
+
+      <Route
+        path="library"
+        element={
+          <S>
+            <Library />
           </S>
         }
       />
