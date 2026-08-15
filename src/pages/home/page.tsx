@@ -29,6 +29,7 @@ import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { AudioPlayer } from "@/components/audio-player"
+import { StoryText } from "@/components/story-text"
 import { buildDownloadUrl, createAudioStream, toDevanagari } from "@/lib/api"
 import { cn } from "@/lib/utils"
 import { VOICES, DEFAULT_VOICE } from "@/lib/voices"
@@ -142,9 +143,10 @@ export default function Home() {
 
       {showReader ? (
         <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-6">
-          <p className="text-[19px] leading-[2] whitespace-pre-wrap text-foreground">
-            {text}
-          </p>
+          <StoryText
+            text={text}
+            className="font-hand text-[22px] leading-[1.75] text-foreground"
+          />
         </main>
       ) : (
         <div className="flex-1 bg-muted/40 px-4 py-6 sm:py-16">
