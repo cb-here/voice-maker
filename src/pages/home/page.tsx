@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import {
   AudioLines,
   BookOpen,
   Check,
   ChevronDown,
+  Clipboard,
   ChevronLeft,
+  Copy,
+  FileUp,
   Headphones,
   Languages,
   Library as LibraryIcon,
@@ -40,9 +43,13 @@ import { cn } from "@/lib/utils"
 import { VOICES, DEFAULT_VOICE } from "@/lib/voices"
 import { saveStory, titleFrom, type Story } from "@/lib/library"
 
+// Comfortably past any story, but short of a file that would lock up the tab.
+const MAX_FILE_BYTES = 500_000
+
 export default function Home() {
   const navigate = useNavigate()
   const { track, play, downloadName, setDownloadName } = useAudio()
+  const fileInputRef = useRef<HTMLInputElement>(null)
   // A story handed over by the library. It is there on the very first render,
   // so it seeds the state directly rather than being copied in by an effect.
   const handover = useLocation().state as
@@ -65,6 +72,7 @@ export default function Home() {
   // different story rather than silently overwriting the old one.
   const [savedTitle, setSavedTitle] = useState(opened?.title)
   const [saved, setSaved] = useState<"idle" | "saving" | "done">("idle")
+  const [copied, setCopied] = useState(false)
   // Opened from the library to read, so back belongs there rather than in the
   // editor. Cleared once the editor is reached, so back stops jumping away.
   const [fromLibrary, setFromLibrary] = useState(Boolean(handover?.read))
@@ -126,6 +134,65 @@ export default function Home() {
     window.addEventListener("beforeunload", confirmLeave)
     return () => window.removeEventListener("beforeunload", confirmLeave)
   }, [hasWorkInProgress])
+
+  const handleCopy = async () => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1800)
+    } catch (err) {
+      console.error("Could not copy:", err)
+      setError("Your browser would not let the app copy that.")
+    }
+  }
+
+  const handlePaste = async () => {
+    setError(null)
+
+    try {
+      const clip = await navigator.clipboard.readText()
+
+      if (clip.trim()) setText(clip)
+    } catch (err) {
+      console.error("Could not paste:", err)
+      // Reading the clipboard needs permission, and Safari refuses outright.
+      setError("Your browser blocked reading the clipboard — long-press the box and paste instead.")
+    }
+  }
+
+  const handleOpenFile = async (file: File | undefined) => {
+    if (!file) return
+
+    setError(null)
+
+    if (file.size > MAX_FILE_BYTES) {
+      setError(
+        `That file is ${Math.round(file.size / 1000)} KB. Please open one under ${
+          MAX_FILE_BYTES / 1000
+        } KB.`
+      )
+      return
+    }
+
+    try {
+      const contents = await file.text()
+
+      // A file saved in some other encoding decodes to replacement characters
+      // rather than failing, so the damage has to be spotted rather than caught.
+      if ((contents.match(/�/g)?.length ?? 0) > contents.length / 200) {
+        setError(
+          "That file does not look like UTF-8 text. Re-save it as UTF-8 and try again."
+        )
+        return
+      }
+
+      setText(contents)
+      setDownloadName(file.name.replace(/\.[^.]+$/, "").slice(0, 40))
+    } catch (err) {
+      console.error("Could not read the file:", err)
+      setError("Could not read that file.")
+    }
+  }
 
   const handleConvert = async () => {
     if (!text.trim()) return
@@ -195,6 +262,15 @@ export default function Home() {
             aria-label="Download filename"
             className="min-w-0 flex-1 rounded bg-transparent px-1 py-1 text-sm font-medium outline-none focus:bg-muted"
           />
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            onClick={handleCopy}
+            aria-label="Copy the story"
+          >
+            {copied ? <Check /> : <Copy />}
+          </Button>
+
           {audioSrc ? (
             <span className="shrink-0 pr-2 text-xs text-muted-foreground">
               .mp3 · {track?.label}
@@ -263,6 +339,39 @@ export default function Home() {
                 className="max-h-[60vh] min-h-[46vh] resize-y overflow-y-auto overscroll-contain rounded-md border border-input bg-background px-4 py-3 text-[17px] leading-[1.85] focus-visible:border-ring sm:max-h-96 sm:min-h-48 md:text-base"
               />
               <div className="flex items-center justify-between gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={converting || loading}
+                  title="Load a .txt file from this device"
+                >
+                  <FileUp />
+                  Open file
+                </Button>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePaste}
+                  disabled={converting || loading}
+                  title="Paste whatever is on the clipboard"
+                >
+                  <Clipboard />
+                  Paste
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".txt,.md,text/plain,text/markdown"
+                  className="hidden"
+                  onChange={(e) => {
+                    handleOpenFile(e.target.files?.[0])
+                    // Cleared so picking the same file twice still fires.
+                    e.target.value = ""
+                  }}
+                />
+
                 <Button
                   variant="outline"
                   size="sm"
