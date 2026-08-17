@@ -338,7 +338,7 @@ export default function Home() {
                 onChange={(e) => setText(e.target.value)}
                 className="max-h-[60vh] min-h-[46vh] resize-y overflow-y-auto overscroll-contain rounded-md border border-input bg-background px-4 py-3 text-[17px] leading-[1.85] focus-visible:border-ring sm:max-h-96 sm:min-h-48 md:text-base"
               />
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -408,7 +408,7 @@ export default function Home() {
                   {saved === "done" ? "Saved" : "Save"}
                 </Button>
 
-                <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground tabular-nums">
                   {charCount} {charCount === 1 ? "character" : "characters"}
                 </span>
               </div>
