@@ -29,7 +29,9 @@ import {
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
@@ -40,7 +42,7 @@ import { StoryText } from "@/components/story-text"
 import { useAudio } from "@/components/audio-host"
 import { createAudioStream, toDevanagari } from "@/lib/api"
 import { cn } from "@/lib/utils"
-import { VOICES, DEFAULT_VOICE } from "@/lib/voices"
+import { VOICES, VOICE_GROUPS, DEFAULT_VOICE } from "@/lib/voices"
 import { saveStory, titleFrom, type Story } from "@/lib/library"
 
 // Comfortably past any story, but short of a file that would lock up the tab.
@@ -448,10 +450,20 @@ export default function Home() {
                       <SelectValue placeholder="Select a voice" />
                     </SelectTrigger>
                     <SelectContent>
-                      {VOICES.map((v) => (
-                        <SelectItem key={v.value} value={v.value}>
-                          {v.label}
-                        </SelectItem>
+                      {VOICE_GROUPS.map((group) => (
+                        <SelectGroup key={group.label}>
+                          <SelectLabel className="flex flex-col items-start gap-0.5">
+                            <span>{group.label}</span>
+                            <span className="text-xs font-normal text-muted-foreground">
+                              {group.hint}
+                            </span>
+                          </SelectLabel>
+                          {group.voices.map((v) => (
+                            <SelectItem key={v.value} value={v.value}>
+                              {v.label}
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
                       ))}
                     </SelectContent>
                   </Select>
