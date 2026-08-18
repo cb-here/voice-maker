@@ -49,7 +49,7 @@ export function StoryText({ text, className }: StoryTextProps) {
   return (
     <div className={cn("space-y-4", className)}>
       {paragraphs.map((paragraph, index) => (
-        <p key={index} className="whitespace-pre-wrap">
+        <p key={index} className="whitespace-pre-wrap break-words">
           {emphasise(paragraph)}
         </p>
       ))}

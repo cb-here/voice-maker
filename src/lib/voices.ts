@@ -35,6 +35,9 @@ export const VOICE_GROUPS: VoiceGroup[] = [
   },
   {
     label: "Standard",
+    // Aria and Guy are deliberately absent: they are the only two edge-tts
+    // voices here that speak English alone, and handed Devanagari they return
+    // no audio at all rather than an accent.
     hint: "edge-tts — starts fastest, largest cast",
     voices: [
       { value: "en-US-EmmaMultilingualNeural", label: "Emma — Expressive (Female)" },
@@ -46,8 +49,6 @@ export const VOICE_GROUPS: VoiceGroup[] = [
       { value: "fr-FR-RemyMultilingualNeural", label: "Remy — Expressive (Male)" },
       { value: "hi-IN-SwaraNeural", label: "Swara — Hindi (Female)" },
       { value: "hi-IN-MadhurNeural", label: "Madhur — Hindi (Male)" },
-      { value: "en-US-AriaNeural", label: "Aria — English (Female)" },
-      { value: "en-US-GuyNeural", label: "Guy — English (Male)" },
     ],
   },
 ]

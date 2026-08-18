@@ -274,7 +274,7 @@ export default function Home() {
           </Button>
 
           {audioSrc ? (
-            <span className="shrink-0 pr-2 text-xs text-muted-foreground">
+            <span className="hidden shrink-0 pr-2 text-xs text-muted-foreground min-[420px]:inline">
               .mp3 · {track?.label}
             </span>
           ) : (
@@ -293,14 +293,14 @@ export default function Home() {
       )}
 
       {showReader ? (
-        <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-6">
+        <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5 sm:px-5 sm:py-6">
           <StoryText
             text={text}
-            className="font-hand text-[22px] leading-[1.75] text-foreground"
+            className="font-hand text-[20px] leading-[1.75] text-foreground sm:text-[22px]"
           />
         </main>
       ) : (
-        <div className="flex-1 bg-muted/40 px-4 py-6 sm:py-16">
+        <div className="flex-1 overflow-x-hidden bg-muted/40 px-3 py-5 sm:px-4 sm:py-16">
           <div className="mx-auto w-full max-w-2xl space-y-5 sm:space-y-6">
         <div className="space-y-2 text-center sm:space-y-3">
           <div className="inline-flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground sm:size-12">
@@ -323,7 +323,7 @@ export default function Home() {
           </p>
         </div>
 
-        <Card>
+        <Card className="[--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(8)]">
           <CardHeader className="hidden border-b sm:block">
             <CardTitle>Your Text</CardTitle>
             <CardDescription>
@@ -340,13 +340,14 @@ export default function Home() {
                 onChange={(e) => setText(e.target.value)}
                 className="max-h-[60vh] min-h-[46vh] resize-y overflow-y-auto overscroll-contain rounded-md border border-input bg-background px-4 py-3 text-[17px] leading-[1.85] focus-visible:border-ring sm:max-h-96 sm:min-h-48 md:text-base"
               />
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => fileInputRef.current?.click()}
                   disabled={converting || loading}
                   title="Load a .txt file from this device"
+                  className="w-full min-w-0 sm:w-auto"
                 >
                   <FileUp />
                   Open file
@@ -358,6 +359,7 @@ export default function Home() {
                   onClick={handlePaste}
                   disabled={converting || loading}
                   title="Paste whatever is on the clipboard"
+                  className="w-full min-w-0 sm:w-auto"
                 >
                   <Clipboard />
                   Paste
@@ -380,16 +382,19 @@ export default function Home() {
                   onClick={handleConvert}
                   disabled={!text.trim() || converting || loading}
                   title="Rewrite Roman-script Hindi and stray scan text as clean Devanagari"
+                  className="w-full min-w-0 sm:w-auto"
                 >
                   {converting ? (
                     <>
                       <Loader2 className="animate-spin" />
-                      Converting…
+                      <span className="hidden min-[380px]:inline">Converting…</span>
+                      <span className="min-[380px]:hidden">Wait…</span>
                     </>
                   ) : (
                     <>
                       <Languages />
-                      हिंदी में बदलें
+                      <span className="hidden min-[380px]:inline">हिंदी में बदलें</span>
+                      <span className="min-[380px]:hidden">हिंदी</span>
                     </>
                   )}
                 </Button>
@@ -399,6 +404,7 @@ export default function Home() {
                   onClick={handleSave}
                   disabled={!text.trim() || saved === "saving"}
                   title="Keep this story on this device"
+                  className="w-full min-w-0 sm:w-auto"
                 >
                   {saved === "saving" ? (
                     <Loader2 className="animate-spin" />
@@ -410,7 +416,7 @@ export default function Home() {
                   {saved === "done" ? "Saved" : "Save"}
                 </Button>
 
-                <span className="ml-auto whitespace-nowrap text-xs text-muted-foreground tabular-nums">
+                <span className="col-span-2 justify-self-end whitespace-nowrap text-xs text-muted-foreground tabular-nums sm:ml-auto">
                   {charCount} {charCount === 1 ? "character" : "characters"}
                 </span>
               </div>
