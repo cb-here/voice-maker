@@ -54,9 +54,10 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null)
   // A story handed over by the library. It is there on the very first render,
   // so it seeds the state directly rather than being copied in by an effect.
-  const handover = useLocation().state as
-    | { story?: Story; read?: boolean }
-    | null
+  const handover = useLocation().state as {
+    story?: Story
+    read?: boolean
+  } | null
   const opened = handover?.story
 
   const [text, setText] = useState(opened?.text ?? "")
@@ -94,7 +95,9 @@ export default function Home() {
   const rateLabel = `${rate >= 0 ? "+" : ""}${rate}%`
   const shortVoiceLabel = (
     VOICES.find((v) => v.value === voice)?.label ?? "Voice"
-  ).split("—")[0].trim()
+  )
+    .split("—")[0]
+    .trim()
 
   const handleSave = async () => {
     if (!text.trim()) return
@@ -158,7 +161,9 @@ export default function Home() {
     } catch (err) {
       console.error("Could not paste:", err)
       // Reading the clipboard needs permission, and Safari refuses outright.
-      setError("Your browser blocked reading the clipboard — long-press the box and paste instead.")
+      setError(
+        "Your browser blocked reading the clipboard — long-press the box and paste instead."
+      )
     }
   }
 
@@ -302,272 +307,284 @@ export default function Home() {
       ) : (
         <div className="flex-1 overflow-x-hidden bg-muted/40 px-3 py-5 sm:px-4 sm:py-16">
           <div className="mx-auto w-full max-w-2xl space-y-5 sm:space-y-6">
-        <div className="space-y-2 text-center sm:space-y-3">
-          <div className="inline-flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground sm:size-12">
-            <AudioLines className="size-5" />
-          </div>
-          <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-4xl">
-            Voice Maker
-          </h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => navigate("/library")}
-          >
-            <LibraryIcon />
-            My Stories
-          </Button>
-          <p className="mx-auto hidden max-w-md text-sm text-muted-foreground sm:block">
-            Turn your text into natural-sounding speech and play, scrub, or
-            download the result.
-          </p>
-        </div>
-
-        <Card className="[--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(8)]">
-          <CardHeader className="hidden border-b sm:block">
-            <CardTitle>Your Text</CardTitle>
-            <CardDescription>
-              Enter the text you want to convert into audio.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-4 sm:space-y-5">
-            <div className="space-y-2">
-              <Textarea
-                placeholder="Type or paste your text here…"
-                value={text}
-                rows={7}
-                onChange={(e) => setText(e.target.value)}
-                className="max-h-[60vh] min-h-[46vh] resize-y overflow-y-auto overscroll-contain rounded-md border border-input bg-background px-4 py-3 text-[17px] leading-[1.85] focus-visible:border-ring sm:max-h-96 sm:min-h-48 md:text-base"
-              />
-              <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={converting || loading}
-                  title="Load a .txt file from this device"
-                  className="w-full min-w-0 sm:w-auto"
-                >
-                  <FileUp />
-                  Open file
-                </Button>
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handlePaste}
-                  disabled={converting || loading}
-                  title="Paste whatever is on the clipboard"
-                  className="w-full min-w-0 sm:w-auto"
-                >
-                  <Clipboard />
-                  Paste
-                </Button>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".txt,.md,text/plain,text/markdown"
-                  className="hidden"
-                  onChange={(e) => {
-                    handleOpenFile(e.target.files?.[0])
-                    // Cleared so picking the same file twice still fires.
-                    e.target.value = ""
-                  }}
-                />
-
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleConvert}
-                  disabled={!text.trim() || converting || loading}
-                  title="Rewrite Roman-script Hindi and stray scan text as clean Devanagari"
-                  className="w-full min-w-0 sm:w-auto"
-                >
-                  {converting ? (
-                    <>
-                      <Loader2 className="animate-spin" />
-                      <span className="hidden min-[380px]:inline">Converting…</span>
-                      <span className="min-[380px]:hidden">Wait…</span>
-                    </>
-                  ) : (
-                    <>
-                      <Languages />
-                      <span className="hidden min-[380px]:inline">हिंदी में बदलें</span>
-                      <span className="min-[380px]:hidden">हिंदी</span>
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={handleSave}
-                  disabled={!text.trim() || saved === "saving"}
-                  title="Keep this story on this device"
-                  className="w-full min-w-0 sm:w-auto"
-                >
-                  {saved === "saving" ? (
-                    <Loader2 className="animate-spin" />
-                  ) : saved === "done" ? (
-                    <Check />
-                  ) : (
-                    <Save />
-                  )}
-                  {saved === "done" ? "Saved" : "Save"}
-                </Button>
-
-                <span className="col-span-2 justify-self-end whitespace-nowrap text-xs text-muted-foreground tabular-nums sm:ml-auto">
-                  {charCount} {charCount === 1 ? "character" : "characters"}
-                </span>
+            <div className="space-y-2 text-center sm:space-y-3">
+              <div className="inline-flex size-10 items-center justify-center rounded-full bg-primary text-primary-foreground sm:size-12">
+                <AudioLines className="size-5" />
               </div>
+              <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-4xl">
+                Voice Maker
+              </h1>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/library")}
+              >
+                <LibraryIcon />
+                My Stories
+              </Button>
+              <p className="mx-auto hidden max-w-md text-sm text-muted-foreground sm:block">
+                Turn your text into natural-sounding speech and play, scrub, or
+                download the result.
+              </p>
             </div>
 
-            <button
-              type="button"
-              onClick={() => setShowOptions((open) => !open)}
-              aria-expanded={showOptions}
-              className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2.5 text-sm sm:hidden"
-            >
-              <span className="truncate text-muted-foreground">
-                {shortVoiceLabel} · {rateLabel}
-                {multiVoice ? " · multi-voice" : ""}
-              </span>
-              <ChevronDown
-                className={cn(
-                  "size-4 shrink-0 text-muted-foreground transition-transform",
-                  showOptions && "rotate-180"
-                )}
-              />
-            </button>
+            <Card className="[--card-spacing:--spacing(5)] sm:[--card-spacing:--spacing(8)]">
+              <CardHeader className="hidden border-b sm:block">
+                <CardTitle>Your Text</CardTitle>
+                <CardDescription>
+                  Enter the text you want to convert into audio.
+                </CardDescription>
+              </CardHeader>
 
-            <div
-              className={cn(
-                "space-y-4 sm:space-y-5",
-                !showOptions && "hidden sm:block"
-              )}
-            >
-              <div className="grid gap-5 sm:grid-cols-2">
+              <CardContent className="space-y-4 sm:space-y-5">
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">
-                    {multiVoice ? "Narrator voice" : "Voice"}
-                  </label>
-                  <Select value={voice} onValueChange={setVoice}>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Select a voice" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {VOICE_GROUPS.map((group) => (
-                        <SelectGroup key={group.label}>
-                          <SelectLabel className="flex flex-col items-start gap-0.5">
-                            <span>{group.label}</span>
-                            <span className="text-xs font-normal text-muted-foreground">
-                              {group.hint}
-                            </span>
-                          </SelectLabel>
-                          {group.voices.map((v) => (
-                            <SelectItem key={v.value} value={v.value}>
-                              {v.label}
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+                  <Textarea
+                    placeholder="Type or paste your text here…"
+                    value={text}
+                    rows={7}
+                    onChange={(e) => setText(e.target.value)}
+                    className="max-h-[60vh] min-h-[46vh] resize-y overflow-y-auto overscroll-contain rounded-md border border-input bg-background px-4 py-3 text-[17px] leading-[1.85] focus-visible:border-ring sm:max-h-96 sm:min-h-48 md:text-base"
+                  />
+                  <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={converting || loading}
+                      title="Load a .txt file from this device"
+                      className="w-full min-w-0 sm:w-auto"
+                    >
+                      <FileUp />
+                      Open file
+                    </Button>
 
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium">Speed</label>
-                    <span className="text-xs text-muted-foreground tabular-nums">
-                      {rateLabel}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handlePaste}
+                      disabled={converting || loading}
+                      title="Paste whatever is on the clipboard"
+                      className="w-full min-w-0 sm:w-auto"
+                    >
+                      <Clipboard />
+                      Paste
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".txt,.md,text/plain,text/markdown"
+                      className="hidden"
+                      onChange={(e) => {
+                        handleOpenFile(e.target.files?.[0])
+                        // Cleared so picking the same file twice still fires.
+                        e.target.value = ""
+                      }}
+                    />
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleConvert}
+                      disabled={!text.trim() || converting || loading}
+                      title="Rewrite Roman-script Hindi and stray scan text as clean Devanagari"
+                      className="w-full min-w-0 sm:w-auto"
+                    >
+                      {converting ? (
+                        <>
+                          <Loader2 className="animate-spin" />
+                          <span className="hidden min-[380px]:inline">
+                            Converting…
+                          </span>
+                          <span className="min-[380px]:hidden">Wait…</span>
+                        </>
+                      ) : (
+                        <>
+                          <Languages />
+                          <span className="hidden min-[380px]:inline">
+                            हिंदी में बदलें
+                          </span>
+                          <span className="min-[380px]:hidden">हिंदी</span>
+                        </>
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={handleSave}
+                      disabled={!text.trim() || saved === "saving"}
+                      title="Keep this story on this device"
+                      className="w-full min-w-0 sm:w-auto"
+                    >
+                      {saved === "saving" ? (
+                        <Loader2 className="animate-spin" />
+                      ) : saved === "done" ? (
+                        <Check />
+                      ) : (
+                        <Save />
+                      )}
+                      {saved === "done" ? "Saved" : "Save"}
+                    </Button>
+
+                    <span className="col-span-2 justify-self-end text-xs whitespace-nowrap text-muted-foreground tabular-nums sm:ml-auto">
+                      {charCount} {charCount === 1 ? "character" : "characters"}
                     </span>
                   </div>
-                  <Slider
-                    value={[rate]}
-                    min={-50}
-                    max={50}
-                    step={5}
-                    onValueChange={(v) => setRate(v[0])}
-                    aria-label="Speed"
-                  />
                 </div>
-              </div>
 
-              <div className="flex items-start gap-3 rounded-md border border-input bg-background p-3">
                 <button
                   type="button"
-                  role="switch"
-                  aria-checked={multiVoice}
-                  aria-label="Multiple voices"
-                  onClick={() => setMultiVoice((on) => !on)}
-                  className={cn(
-                    "mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
-                    "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
-                    multiVoice ? "bg-primary" : "bg-input"
-                  )}
+                  onClick={() => setShowOptions((open) => !open)}
+                  aria-expanded={showOptions}
+                  className="flex w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2.5 text-sm sm:hidden"
                 >
-                  <span
+                  <span className="truncate text-muted-foreground">
+                    {shortVoiceLabel} · {rateLabel}
+                    {multiVoice ? " · multi-voice" : ""}
+                  </span>
+                  <ChevronDown
                     className={cn(
-                      "size-4 rounded-full bg-background shadow transition-transform",
-                      multiVoice ? "translate-x-[1.125rem]" : "translate-x-0.5"
+                      "size-4 shrink-0 text-muted-foreground transition-transform",
+                      showOptions && "rotate-180"
                     )}
                   />
                 </button>
 
-                <div className="space-y-0.5">
-                  <div className="flex items-center gap-2">
-                    <Users className="size-3.5 text-muted-foreground" />
-                    <label className="text-sm font-medium">
-                      Multiple voices
-                    </label>
-                    <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-primary uppercase">
-                      Beta
-                    </span>
+                <div
+                  className={cn(
+                    "space-y-4 sm:space-y-5",
+                    !showOptions && "hidden sm:block"
+                  )}
+                >
+                  <div className="grid gap-5 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium">
+                        {multiVoice ? "Narrator voice" : "Voice"}
+                      </label>
+                      <Select value={voice} onValueChange={setVoice}>
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Select a voice" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {VOICE_GROUPS.map((group) => (
+                            <SelectGroup key={group.label}>
+                              <SelectLabel className="flex flex-col items-start gap-0.5">
+                                <span>{group.label}</span>
+                                <span className="text-xs font-normal text-muted-foreground">
+                                  {group.hint}
+                                </span>
+                              </SelectLabel>
+                              {group.voices.map((v) => (
+                                <SelectItem key={v.value} value={v.value}>
+                                  {v.label}
+                                </SelectItem>
+                              ))}
+                            </SelectGroup>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium">Speed</label>
+                        <span className="text-xs text-muted-foreground tabular-nums">
+                          {rateLabel}
+                        </span>
+                      </div>
+                      <Slider
+                        value={[rate]}
+                        min={-50}
+                        max={50}
+                        step={5}
+                        onValueChange={(v) => setRate(v[0])}
+                        aria-label="Speed"
+                      />
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Reads dialogue in a separate voice per character. Adds a few
-                    seconds up front while the story is analysed.
+
+                  <div className="flex items-start gap-3 rounded-md border border-input bg-background p-3">
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={multiVoice}
+                      aria-label="Multiple voices"
+                      onClick={() => setMultiVoice((on) => !on)}
+                      className={cn(
+                        "mt-0.5 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors",
+                        "focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none",
+                        multiVoice ? "bg-primary" : "bg-input"
+                      )}
+                    >
+                      <span
+                        className={cn(
+                          "size-4 rounded-full bg-background shadow transition-transform",
+                          multiVoice
+                            ? "translate-x-[1.125rem]"
+                            : "translate-x-0.5"
+                        )}
+                      />
+                    </button>
+
+                    <div className="space-y-0.5">
+                      <div className="flex items-center gap-2">
+                        <Users className="size-3.5 text-muted-foreground" />
+                        <label className="text-sm font-medium">
+                          Multiple voices
+                        </label>
+                        <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[10px] font-semibold tracking-wide text-primary uppercase">
+                          Beta
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Reads dialogue in a separate voice per character. Adds a
+                        few seconds up front while the story is analysed.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">
+                      Download filename
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        value={downloadName}
+                        onChange={(e) => setDownloadName(e.target.value)}
+                        placeholder="voice-maker-output"
+                      />
+                      <span className="text-sm text-muted-foreground">
+                        .mp3
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <Button
+                  onClick={handleGenerate}
+                  disabled={!text.trim() || loading}
+                  size="lg"
+                  className="w-full"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin" />
+                      Starting…
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 />
+                      Generate Audio
+                    </>
+                  )}
+                </Button>
+
+                {error && (
+                  <p className="text-center text-sm text-destructive">
+                    {error}
                   </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Download filename</label>
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={downloadName}
-                    onChange={(e) => setDownloadName(e.target.value)}
-                    placeholder="voice-maker-output"
-                  />
-                  <span className="text-sm text-muted-foreground">.mp3</span>
-                </div>
-              </div>
-            </div>
-
-            <Button
-              onClick={handleGenerate}
-              disabled={!text.trim() || loading}
-              size="lg"
-              className="w-full"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="animate-spin" />
-                  Starting…
-                </>
-              ) : (
-                <>
-                  <Wand2 />
-                  Generate Audio
-                </>
-              )}
-            </Button>
-
-            {error && (
-              <p className="text-center text-sm text-destructive">{error}</p>
-            )}
-          </CardContent>
-        </Card>
+                )}
+              </CardContent>
+            </Card>
 
             {audioSrc && (
               <Button
