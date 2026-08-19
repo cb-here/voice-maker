@@ -9,6 +9,7 @@ function S({ children }: { children: ReactNode }) {
 const Home = lazy(() => import("@/pages/home/page"));
 const Library = lazy(() => import("@/pages/library/page"));
 const Translate = lazy(() => import("@/pages/translate/page"));
+const Split = lazy(() => import("@/pages/split/page"));
 const NotFound = lazy(() => import("@/pages/not-found/page"));
 
 export function AppRoutes() {
@@ -30,6 +31,15 @@ export function AppRoutes() {
         element={
           <S>
             <Library />
+          </S>
+        }
+      />
+
+      <Route
+        path="split"
+        element={
+          <S>
+            <Split />
           </S>
         }
       />

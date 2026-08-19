@@ -1,5 +1,7 @@
 import axios from "axios"
 
+import type { ChosenCast } from "@/lib/cast"
+
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8000"
 
@@ -12,6 +14,10 @@ export interface GenerateAudioParams {
   voice?: string
   rate?: string
   multiVoice?: boolean
+  // Who each character is, as settled in the reader. Sent only with a
+  // multi-voice reading, and only for characters actually decided on — an empty
+  // cast leaves the backend working it out exactly as it did before.
+  cast?: ChosenCast
 }
 
 export async function toDevanagari(text: string): Promise<string> {
@@ -32,12 +38,19 @@ export async function createAudioStream({
   voice,
   rate,
   multiVoice = false,
+  cast,
 }: GenerateAudioParams): Promise<AudioStream> {
   const response = await api.post<{
     session_id: string
     stream_url: string
     estimated_seconds: number
-  }>("/audio/stream", { text, voice, rate, multi_voice: multiVoice })
+  }>("/audio/stream", {
+    text,
+    voice,
+    rate,
+    multi_voice: multiVoice,
+    ...(cast && Object.keys(cast).length ? { cast } : {}),
+  })
 
   return {
     streamUrl: new URL(response.data.stream_url, API_BASE_URL).toString(),

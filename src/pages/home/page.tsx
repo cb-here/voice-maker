@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useLocation, useNavigate } from "react-router-dom"
 import {
   AudioLines,
+  Scissors,
   BookOpen,
   Check,
   ChevronDown,
@@ -38,15 +39,19 @@ import {
 import { Input } from "@/components/ui/input"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
+import { CastEditor } from "@/components/cast-editor"
 import { StoryText } from "@/components/story-text"
 import { useAudio } from "@/components/audio-host"
 import { createAudioStream, toDevanagari } from "@/lib/api"
+import { findCast, toChosenCast, type Character } from "@/lib/cast"
 import { cn } from "@/lib/utils"
 import { VOICES, VOICE_GROUPS, DEFAULT_VOICE } from "@/lib/voices"
 import { saveStory, titleFrom, type Story } from "@/lib/library"
 
 // Comfortably past any story, but short of a file that would lock up the tab.
 const MAX_FILE_BYTES = 500_000
+
+type CastEdit = Partial<Character> & { removed?: boolean }
 
 export default function Home() {
   const navigate = useNavigate()
@@ -65,6 +70,12 @@ export default function Home() {
   const [rate, setRate] = useState(opened?.rate ?? 0)
   const [multiVoice, setMultiVoice] = useState(opened?.multiVoice ?? true)
   const [showOptions, setShowOptions] = useState(false)
+  // Genders and pinned voices the listener has chosen, kept by match key so an
+  // edit survives the story being edited underneath it. `removed` has to be
+  // recorded rather than simply dropped: the list is derived from the text, so
+  // anything not noted as removed comes straight back on the next keystroke.
+  const [chosen, setChosen] = useState<Record<string, CastEdit>>({})
+  const [showCast, setShowCast] = useState(false)
   const [reading, setReading] = useState(Boolean(handover?.read))
   const [converting, setConverting] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -88,6 +99,63 @@ export default function Home() {
 
     setReading(false)
   }
+
+  // Found here in the browser, with no request and no key — the story names
+  // its own speakers, and reading that off the page is a pattern rather than a
+  // judgement. Only which line belongs to whom still needs the model.
+  const detected = useMemo(
+    () => (multiVoice ? findCast(text) : []),
+    [text, multiVoice],
+  )
+
+  const fullCast = useMemo(() => {
+    const listed = detected
+      .filter((one) => !chosen[one.key]?.removed)
+      .map((one) => ({ ...one, ...chosen[one.key] }))
+
+    // Anyone typed in by hand, or held over from an earlier draft of the story
+    // that no longer attributes them a line.
+    const extra = Object.entries(chosen)
+      .filter(
+        ([key, edit]) =>
+          !edit.removed && !detected.some((one) => one.key === key),
+      )
+      .map(([key, edit]) => ({
+        key,
+        name: edit.name ?? key,
+        mentions: 0,
+        sample: "",
+        gender: edit.gender ?? ("neutral" as const),
+        voice: edit.voice,
+      }))
+
+    return [...listed, ...extra]
+  }, [detected, chosen])
+
+  const changeCast = (next: Character[]) =>
+    setChosen((before) => {
+      const after: Record<string, CastEdit> = { ...before }
+
+      for (const one of fullCast) {
+        if (!next.some((kept) => kept.key === one.key)) {
+          after[one.key] = { ...before[one.key], name: one.name, removed: true }
+        }
+      }
+
+      for (const one of next) {
+        after[one.key] = {
+          name: one.name,
+          gender: one.gender,
+          voice: one.voice,
+        }
+      }
+
+      return after
+    })
+
+  const castChanges = fullCast.filter(
+    (one) => one.gender !== "neutral" || one.voice,
+  ).length
 
   const audioSrc = track?.src ?? null
 
@@ -229,6 +297,7 @@ export default function Home() {
         voice,
         rate: rateLabel,
         multiVoice,
+        cast: multiVoice ? toChosenCast(fullCast) : undefined,
       })
       play({
         src: stream.streamUrl,
@@ -314,14 +383,24 @@ export default function Home() {
               <h1 className="font-heading text-2xl font-semibold tracking-tight sm:text-4xl">
                 Voice Maker
               </h1>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => navigate("/library")}
-              >
-                <LibraryIcon />
-                My Stories
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/library")}
+                >
+                  <LibraryIcon />
+                  My Stories
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => navigate("/split", { state: { text } })}
+                >
+                  <Scissors />
+                  Split
+                </Button>
+              </div>
               <p className="mx-auto hidden max-w-md text-sm text-muted-foreground sm:block">
                 Turn your text into natural-sounding speech and play, scrub, or
                 download the result.
@@ -541,6 +620,51 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
+
+                  {multiVoice && fullCast.length > 0 && (
+                    <div className="space-y-3 rounded-md border border-input bg-background p-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowCast((open) => !open)}
+                        aria-expanded={showCast}
+                        className="flex w-full items-center gap-2 text-left"
+                      >
+                        <Users className="size-3.5 shrink-0 text-muted-foreground" />
+                        <span className="text-sm font-medium">Cast</span>
+                        <span className="text-xs text-muted-foreground">
+                          {fullCast.length}{" "}
+                          {fullCast.length === 1 ? "character" : "characters"}
+                          {castChanges > 0 && ` · ${castChanges} set`}
+                        </span>
+                        <ChevronDown
+                          className={cn(
+                            "ml-auto size-4 shrink-0 text-muted-foreground transition-transform",
+                            showCast && "rotate-180",
+                          )}
+                        />
+                      </button>
+
+                      {showCast ? (
+                        <>
+                          <p className="text-xs text-muted-foreground">
+                            Read straight off the story — no waiting, nothing
+                            sent anywhere. Say who each character is and they
+                            keep that voice throughout; leave one on Auto and it
+                            is worked out as before.
+                          </p>
+                          <CastEditor
+                            cast={fullCast}
+                            narrator={voice}
+                            onChange={changeCast}
+                          />
+                        </>
+                      ) : (
+                        <p className="truncate text-xs text-muted-foreground">
+                          {fullCast.map((one) => one.name).join(", ")}
+                        </p>
+                      )}
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     <label className="text-sm font-medium">
