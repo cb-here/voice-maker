@@ -15,8 +15,10 @@ import {
   Library as LibraryIcon,
   Loader2,
   Save,
+  Search,
   Users,
   Wand2,
+  X,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -41,6 +43,7 @@ import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { CastEditor } from "@/components/cast-editor"
 import { StoryText } from "@/components/story-text"
+import { countMatches } from "@/lib/story-search"
 import { useAudio } from "@/components/audio-host"
 import { createAudioStream, toDevanagari } from "@/lib/api"
 import { findCast, toChosenCast, type Character } from "@/lib/cast"
@@ -76,6 +79,11 @@ export default function Home() {
   // anything not noted as removed comes straight back on the next keystroke.
   const [chosen, setChosen] = useState<Record<string, CastEdit>>({})
   const [showCast, setShowCast] = useState(false)
+  // Finding a line in a story that is forty minutes long: the reader shows all
+  // of it at once, so scrolling for a name is the only alternative.
+  const [searching, setSearching] = useState(false)
+  const [query, setQuery] = useState("")
+  const [match, setMatch] = useState(0)
   const [reading, setReading] = useState(Boolean(handover?.read))
   const [converting, setConverting] = useState(false)
   const [loading, setLoading] = useState(false)
@@ -313,6 +321,38 @@ export default function Home() {
     }
   }
 
+  // Counting runs over the whole story on every keystroke, so it is memoised
+  // rather than recomputed while someone is still typing a word.
+  const matches = useMemo(
+    () => (searching ? countMatches(text, query) : 0),
+    [searching, text, query],
+  )
+
+  // Wraps around at both ends, which is what every other find bar does and what
+  // makes the arrows usable when the last match is the one you started on.
+  const step = (by: number) =>
+    setMatch((at) => (matches ? (at + by + matches) % matches : 0))
+
+  const closeSearch = () => {
+    setSearching(false)
+    setQuery("")
+    setMatch(0)
+  }
+
+  useEffect(() => {
+    // A new query renumbers everything, so the current match has to go back to
+    // the first one rather than point into the middle of a different set.
+    setMatch(0)
+  }, [query])
+
+  useEffect(() => {
+    if (!searching || !matches) return
+
+    document
+      .querySelector("[data-active-match]")
+      ?.scrollIntoView({ block: "center", behavior: "smooth" })
+  }, [searching, matches, match])
+
   // Reading does not depend on audio existing: a saved story can be opened
   // just to read, and listening started later from inside the reader.
   const showReader = reading && text.trim().length > 0
@@ -341,6 +381,14 @@ export default function Home() {
           <Button
             variant="ghost"
             size="icon-sm"
+            onClick={() => (searching ? closeSearch() : setSearching(true))}
+            aria-label={searching ? "Close search" : "Search the story"}
+          >
+            <Search />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
             onClick={handleCopy}
             aria-label="Copy the story"
           >
@@ -366,10 +414,76 @@ export default function Home() {
         </header>
       )}
 
+      {showReader && searching && (
+        <div className="sticky top-[3.25rem] z-10 border-b bg-background/95 px-2 py-2 backdrop-blur">
+          <div className="mx-auto flex w-full max-w-2xl items-center gap-1">
+            <Search className="ml-1 size-4 shrink-0 text-muted-foreground" />
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") closeSearch()
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  step(e.shiftKey ? -1 : 1)
+                }
+              }}
+              placeholder="Find in this story"
+              aria-label="Find in this story"
+              className="min-w-0 flex-1 rounded bg-transparent px-1 py-1 text-sm outline-none"
+            />
+            <span
+              aria-live="polite"
+              className={cn(
+                "shrink-0 px-1 text-xs whitespace-nowrap tabular-nums",
+                query.trim() && !matches
+                  ? "text-destructive"
+                  : "text-muted-foreground",
+              )}
+            >
+              {!query.trim()
+                ? ""
+                : matches
+                  ? `${match + 1} of ${matches}`
+                  : "none"}
+            </span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => step(-1)}
+              disabled={!matches}
+              aria-label="Previous match"
+            >
+              <ChevronLeft />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={() => step(1)}
+              disabled={!matches}
+              aria-label="Next match"
+            >
+              <ChevronLeft className="rotate-180" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              onClick={closeSearch}
+              aria-label="Close search"
+            >
+              <X />
+            </Button>
+          </div>
+        </div>
+      )}
+
       {showReader ? (
-        <main className="mx-auto w-full max-w-2xl flex-1 px-4 py-5 sm:px-5 sm:py-6">
+        <main className="mx-auto w-full max-w-2xl flex-1 overflow-x-hidden px-4 py-5 sm:px-5 sm:py-6">
           <StoryText
             text={text}
+            query={searching ? query : ""}
+            active={match}
             className="font-hand text-[20px] leading-[1.75] text-foreground sm:text-[22px]"
           />
         </main>
