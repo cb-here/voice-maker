@@ -402,13 +402,14 @@ export default function Home() {
           ) : (
             /* Opened purely to read, so offer to start the audio from here. */
             <Button
-              size="sm"
+              variant="ghost"
+              size="icon-sm"
               className="shrink-0"
               onClick={handleGenerate}
               disabled={loading}
+              aria-label="Listen to this story"
             >
               {loading ? <Loader2 className="animate-spin" /> : <Headphones />}
-              Listen
             </Button>
           )}
         </header>
